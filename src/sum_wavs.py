@@ -30,11 +30,12 @@ def sum_wavs(args):
         i = np.where((wav>=args.wmin) & (wav<args.wmax))
         wavstr = [f'{w:.2f}' for w in wav[i].tolist()]
         hdr='wavelengths='+','.join(wavstr)
+        hdr=f'wavelengths=[{wavstr[0]},{wavstr[-1]}]'
 
         irr_sum = irr[:,i].sum(axis=2)
         err_sum = np.sqrt((err[:,i]*err[:,i]).sum(axis=2))
 
-        np.savetxt(sys.stdout, irr_sum[:10], fmt='%5g', header=hdr)
+        np.savetxt(sys.stdout, irr_sum, fmt='%5g', header=hdr)
 
         if args.plot:
             plt.plot(irr_sum)
@@ -50,7 +51,7 @@ def main():
     parser.add_argument('--datesfile', default='./dates.txt')
     parser.add_argument('-p', '--plot', action='store_true', help='Display plot')
     parser.add_argument('wmin', type=float, help='Minimum wavelength')
-    parser.add_argument('wmax', type=float)
+    parser.add_argument('wmax', type=float, help='Maximum wavelength')
     args = parser.parse_args()
 
     sum_wavs(args)
