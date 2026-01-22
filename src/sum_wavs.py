@@ -25,7 +25,7 @@ def sum_wavs(args):
 
         wav = f['wavelength'][:]
         irr = f['irradiance'][:,:]
-        err = f['uncertainty'][:,:]
+        # err = f['uncertainty'][:,:]
 
         i = np.where((wav>=args.wmin) & (wav<args.wmax))
         wavstr = [f'{w:.2f}' for w in wav[i].tolist()]
@@ -33,13 +33,14 @@ def sum_wavs(args):
         hdr=f'sum(wav=[{wavstr[0]},{wavstr[-1]}])'
 
         irr_sum = irr[:,i].sum(axis=2)
-        err_sum = np.sqrt((err[:,i]*err[:,i]).sum(axis=2))
+        # err_sum = np.sqrt((err[:,i]*err[:,i]).sum(axis=2))
 
         np.savetxt(sys.stdout, irr_sum, fmt='%5g', header=hdr)
 
         if args.plot:
-            plt.plot(irr_sum)
-            plt.xlabel('Days since 1947')
+            years = np.arange(irr_sum.shape[0])*1/365.2425 + 1947+44.5/365
+            plt.scatter(years, irr_sum, s=0.1, linewidths=0)
+            plt.xlabel('Year')
             plt.ylabel(f'Irradiance: λ(Å)=[{args.wmin:g}, {args.wmax:g})')
             plt.show()
 
