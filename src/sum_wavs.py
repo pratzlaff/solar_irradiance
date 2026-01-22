@@ -30,7 +30,7 @@ def sum_wavs(args):
         irr = f['irradiance'][:,:]
 
         # uncertainty is absolute, i.e., relative/irr
-        err = f['uncertainty'][:,:] * irr
+        # err = f['uncertainty'][:,:] * irr
 
         binsize = wav[1]-wav[0]
         if np.sum(np.abs((wav[1:]-wav[:-1])-binsize)>1e-5):
@@ -41,12 +41,12 @@ def sum_wavs(args):
         # outer limits of the wavelength bins, rather than centers
         wmin = wav[i[0]] - binsize/2
         wmax = wav[i[-1]] + binsize/2
-        hdr=f'sum(wav=[{wmin:.2f},{wmax:.2f}])\terr(sum(wav=[{wmin:.2f},{wmax:.2f}]))'
+        hdr=f'sum(wav=[{wmin:g},{wmax:g}])'
 
-        irr_sum = irr[:,i].sum(axis=1)*(wmax-wmin)
-        err_sum = np.sqrt((err[:,i]*err[:,i]).sum(axis=1))*(wmax-wmin)
+        irr_sum = irr[:,i].sum(axis=1)*binsize
+        # err_sum = np.sqrt((err[:,i]*err[:,i]).sum(axis=1))*binsize
 
-        np.savetxt(sys.stdout, np.column_stack((irr_sum, err_sum,)), fmt='%5g', delimiter='\t', header=hdr)
+        np.savetxt(sys.stdout, irr_sum, fmt='%5g', header=hdr)
 
         if args.plot:
             years = np.arange(irr_sum.shape[0])*1/365.2425 + 1947+44.5/365
