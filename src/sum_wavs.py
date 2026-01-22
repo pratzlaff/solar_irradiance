@@ -13,7 +13,7 @@ def write_dates(dates, dates_file):
     if not dates_path.exists():
         sys.stderr.write(f"writing dates to '{dates_file}'\n")
         dates = np.array([l.decode() for l in dates])
-        np.savetxt(dates_file, dates, fmt='%s')
+        np.savetxt(dates_file, dates, fmt='%s', header='Date')
 
 def sum_wavs(args):
     with h5py.File(args.infile, 'r') as f:
@@ -30,7 +30,7 @@ def sum_wavs(args):
         i = np.where((wav>=args.wmin) & (wav<args.wmax))
         wavstr = [f'{w:.2f}' for w in wav[i].tolist()]
         hdr='wavelengths='+','.join(wavstr)
-        hdr=f'wavelengths=[{wavstr[0]},{wavstr[-1]}]'
+        hdr=f'sum(wav=[{wavstr[0]},{wavstr[-1]}])'
 
         irr_sum = irr[:,i].sum(axis=2)
         err_sum = np.sqrt((err[:,i]*err[:,i]).sum(axis=2))
