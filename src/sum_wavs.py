@@ -8,6 +8,9 @@ import matplotlib.pyplot as plt
 
 srcdir = os.path.dirname(os.path.realpath(__file__))
 
+class BinUniformityException(ValueError):
+    pass
+
 def write_dates(dates, dates_file):
     dates_path = Path(dates_file)
     if not dates_path.exists():
@@ -25,23 +28,31 @@ def sum_wavs(args):
 
         wav = f['wavelength'][:]
         irr = f['irradiance'][:,:]
-        # err = f['uncertainty'][:,:]
 
-        i = np.where((wav>=args.wmin) & (wav<args.wmax))
-        wavstr = [f'{w:.2f}' for w in wav[i].tolist()]
-        hdr='wavelengths='+','.join(wavstr)
-        hdr=f'sum(wav=[{wavstr[0]},{wavstr[-1]}])'
+        # uncertainty is absolute, i.e., relative/irr
+        err = f['uncertainty'][:,:] * irr
 
-        irr_sum = irr[:,i].sum(axis=2)
-        # err_sum = np.sqrt((err[:,i]*err[:,i]).sum(axis=2))
+        binsize = wav[1]-wav[0]
+        if np.sum(np.abs((wav[1:]-wav[:-1])-binsize)>1e-5):
+            raise BinUniformityException()
 
-        np.savetxt(sys.stdout, irr_sum, fmt='%5g', header=hdr)
+        i, = np.where((wav>=args.wmin) & (wav<args.wmax))
+
+        # outer limits of the wavelength bins, rather than centers
+        wmin = wav[i[0]] - binsize/2
+        wmax = wav[i[-1]] + binsize/2
+        hdr=f'sum(wav=[{wmin:.2f},{wmax:.2f}])\terr(sum(wav=[{wmin:.2f},{wmax:.2f}]))'
+
+        irr_sum = irr[:,i].sum(axis=1)*(wmax-wmin)
+        err_sum = np.sqrt((err[:,i]*err[:,i]).sum(axis=1))*(wmax-wmin)
+
+        np.savetxt(sys.stdout, np.column_stack((irr_sum, err_sum,)), fmt='%5g', delimiter='\t', header=hdr)
 
         if args.plot:
             years = np.arange(irr_sum.shape[0])*1/365.2425 + 1947+44.5/365
             plt.scatter(years, irr_sum, s=0.1, linewidths=0)
             plt.xlabel('Year')
-            plt.ylabel(f'Irradiance: λ(Å)=[{args.wmin:g}, {args.wmax:g})')
+            plt.ylabel(f'Irradiance: λ(nm)=[{wmin:g}, {wmax:g}]')
             plt.show()
 
 def main():
@@ -51,8 +62,8 @@ def main():
     parser.add_argument('--infile', default=srcdir+'/../data/daily_data.nc')
     parser.add_argument('--datesfile', default='./dates.txt')
     parser.add_argument('-p', '--plot', action='store_true', help='Display plot')
-    parser.add_argument('wmin', type=float, help='Minimum wavelength')
-    parser.add_argument('wmax', type=float, help='Maximum wavelength')
+    parser.add_argument('wmin', type=float, help='Minimum wavelength (nm, bin center)')
+    parser.add_argument('wmax', type=float, help='Maximum wavelength (nm, bin center)')
     args = parser.parse_args()
 
     sum_wavs(args)
