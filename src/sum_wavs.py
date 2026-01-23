@@ -11,6 +11,15 @@ srcdir = os.path.dirname(os.path.realpath(__file__))
 class BinUniformityError(ValueError):
     pass
 
+def is_leap_year(year):
+    return year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)
+
+def dates2years(dates):
+    date0 = dates[0].decode()
+    year0 = int(date0[:4])
+    day0 = int(date0[4:])
+    return np.arange(dates.shape[0])/365.2425 + year0 + (day0-0.5)/(365+is_leap_year(year0))
+
 def write_dates(dates, dates_file):
     dates_path = Path(dates_file)
     if not dates_path.exists():
@@ -52,7 +61,8 @@ def sum_wavs(args):
             pass
 
         if args.plot:
-            years = np.arange(irr_sum.shape[0])/365.2425 + 1947 + 44.5/365
+            years = dates2years(f['date'])
+            print(years)
             plt.scatter(years, irr_sum, s=0.1, linewidths=0)
             plt.xlabel('Year')
             plt.ylabel(f'Irradiance: λ(nm)=[{wmin:g}, {wmax:g}]')
