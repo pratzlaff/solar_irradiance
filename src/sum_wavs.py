@@ -55,18 +55,28 @@ def sum_wavs(args):
             plt.scatter(years, irr_sum, s=0.1, linewidths=0)
             plt.xlabel('Year')
             plt.ylabel(f'Irradiance: λ(nm)=[{wmin:g}, {wmax:g}]')
-            plt.show()
+            plt.tight_layout()
+            if args.plot_file is not None:
+                plt.savefig(args.plot_file)
+            else:
+                plt.show()
 
 def main():
     parser = argparse.ArgumentParser(
         description='Read solar irradiance data, sum those in a wavelength range.'
     )
-    parser.add_argument('--infile', default=srcdir+'/../data/daily_data.nc')
-    parser.add_argument('--datesfile', default='./dates.txt')
-    parser.add_argument('-p', '--plot', action='store_true', help='Display plot')
+    infile_default = srcdir+'/../data/daily_data.nc'
+    parser.add_argument('--infile', default=infile_default, help=f'Input HDF5 file containing irradiance data. Default is "{infile_default}"' )
+    datesfile_default = './dates.txt'
+    parser.add_argument('--datesfile', default=datesfile_default, help=f'Output dates filename. Default is "{datesfile_default}"')
+    parser.add_argument('-p', '--plot', action='store_true', help='Display plot of data.')
+    parser.add_argument('--plot_file', help='Write plot to the given filename. Automatically enables --plot.')
     parser.add_argument('wmin', type=float, help='Minimum wavelength (nm, bin center)')
     parser.add_argument('wmax', type=float, help='Maximum wavelength (nm, bin center)')
     args = parser.parse_args()
+
+    if args.plot_file is not None:
+        args.plot = True
 
     sum_wavs(args)
 
