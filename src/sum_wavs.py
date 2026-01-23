@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 srcdir = os.path.dirname(os.path.realpath(__file__))
 
-class BinUniformityException(ValueError):
+class BinUniformityError(ValueError):
     pass
 
 def write_dates(dates, dates_file):
@@ -20,16 +20,17 @@ def write_dates(dates, dates_file):
 
 def sum_wavs(args):
     with h5py.File(args.infile, 'r') as f:
-        keys = list(f.keys())
-        for k in f.keys():
-            continue
-            sys.stderr.write(f'{k}:\t{f[k].shape}\n')
+
+        if False:
+            for k in f.keys():
+                sys.stderr.write(f'{k}:\t{f[k].shape}\n')
+
         write_dates(f['date'], args.datesfile)
 
         wav = f['wavelength'][:]
         binsize = wav[1]-wav[0]
         if np.sum(np.abs((wav[1:]-wav[:-1])-binsize)>1e-5):
-            raise BinUniformityException()
+            raise BinUniformityError()
 
         i, = np.where((wav>=args.wmin) & (wav<args.wmax))
 
