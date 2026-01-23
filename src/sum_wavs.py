@@ -27,29 +27,31 @@ def sum_wavs(args):
         write_dates(f['date'], args.datesfile)
 
         wav = f['wavelength'][:]
-        irr = f['irradiance'][:,:]
-
-        # uncertainty is absolute, i.e., relative/irr
-        # err = f['uncertainty'][:,:] * irr
-
         binsize = wav[1]-wav[0]
         if np.sum(np.abs((wav[1:]-wav[:-1])-binsize)>1e-5):
             raise BinUniformityException()
 
         i, = np.where((wav>=args.wmin) & (wav<args.wmax))
 
+        irr = f['irradiance'][:,i]
+        irr_sum = irr.sum(axis=1)*binsize
+
+        if False:
+            err = f['uncertainty'][:,i] * irr
+            err_sum = np.sqrt((err*err).sum(axis=1))*binsize
+
         # outer limits of the wavelength bins, rather than centers
         wmin = wav[i[0]] - binsize/2
         wmax = wav[i[-1]] + binsize/2
         hdr=f'sum(wav=[{wmin:g},{wmax:g}])'
 
-        irr_sum = irr[:,i].sum(axis=1)*binsize
-        # err_sum = np.sqrt((err[:,i]*err[:,i]).sum(axis=1))*binsize
-
-        np.savetxt(sys.stdout, irr_sum, fmt='%5g', header=hdr)
+        try:
+            np.savetxt(sys.stdout, irr_sum, fmt='%5g', header=hdr)
+        except BrokenPipeError:
+            pass
 
         if args.plot:
-            years = np.arange(irr_sum.shape[0])*1/365.2425 + 1947+44.5/365
+            years = np.arange(irr_sum.shape[0])/365.2425 + 1947 + 44.5/365
             plt.scatter(years, irr_sum, s=0.1, linewidths=0)
             plt.xlabel('Year')
             plt.ylabel(f'Irradiance: λ(nm)=[{wmin:g}, {wmax:g}]')
