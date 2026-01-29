@@ -1,10 +1,10 @@
 import argparse
 import h5py
+import matplotlib.pyplot as plt
 import numpy as np
 import os
 from pathlib import Path
 import sys
-import matplotlib.pyplot as plt
 
 srcdir = os.path.dirname(os.path.realpath(__file__))
 
@@ -63,18 +63,18 @@ def sum_wavs(args):
     if args.mean:
         prefix = 'Mean '
         irr_sum /= i.shape[0]
-        hdr=f'mean(wav=[{wmin:g},{wmax:g}])'
+        hdr=f'mean(wav=[{wmin:.1f},{wmax:.1f}])'
         if args.errs:
             err_sum /= i.shape[0]
 
     elif args.sum:
         prefix = 'Sum '
-        hdr=f'sum(wav=[{wmin:g},{wmax:g}])'
+        hdr=f'sum(wav=[{wmin:.1f},{wmax:.1f}])'
 
     else:
         prefix=''
         irr_sum *= binsize
-        hdr=f'sum(wav=[{wmin:g},{wmax:g}])*binsize'
+        hdr=f'sum(wav=[{wmin:.1f},{wmax:.1f}])*binsize'
         units = r'$\text{W}\;\text{m}^{-2}$'
         if args.errs:
             err_sum *= binsize
@@ -84,7 +84,7 @@ def sum_wavs(args):
         if args.errs:
             toprint = np.column_stack((irr_sum, err_sum))
             hdr += '\terr'
-        np.savetxt(sys.stdout, toprint, fmt='%5g', header=hdr)
+        np.savetxt(sys.stdout, toprint, fmt='%5g', delimiter='\t', header=hdr)
     except BrokenPipeError:
         pass
 
@@ -102,7 +102,7 @@ def sum_wavs(args):
             irr_sum = irr_sum[i]
         plt.scatter(years, irr_sum, s=1, linewidths=1)
         plt.xlabel('Year')
-        ylabel = f'{prefix}Irradiance ({units}): λ(nm)=[{wmin:.1f}, {wmax:g}]'
+        ylabel = f'{prefix}Irradiance ({units}): λ(nm)=[{wmin:.1f}, {wmax:.1f}]'
         plt.ylabel(ylabel)
         plt.tight_layout()
         if args.plot_file is not None:
