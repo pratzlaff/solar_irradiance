@@ -51,32 +51,37 @@ def sum_wavs(args):
         wmax = wav[i[-1]] + binsize/2
 
         irr = f['irradiance'][:,i]
-        if False:
+        irr_sum = irr.sum(axis=1)
+        if args.errs:
             err = f['uncertainty'][:,i] * irr
+            err_sum = np.sqrt((err*err).sum(axis=1))
 
         units = r'$\text{W}\;\text{m}^{-2}\;\text{nm}^{-1}$'
         if args.mean:
             prefix = 'Mean '
-            irr_sum = irr.mean(axis=1)
+            irr_sum /= i.shape[0]
             hdr=f'mean(wav=[{wmin:g},{wmax:g}])'
-            if False:
-                err_sum = np.sqrt((err*err).sum(axis=1))/i.shape[0]
+            if args.errs:
+                err_sum /= i.shape[0]
+
         elif args.sum:
             prefix = 'Sum '
-            irr_sum = irr.sum(axis=1)
             hdr=f'sum(wav=[{wmin:g},{wmax:g}])'
-            if False:
-                err_sum = np.sqrt((err*err).sum(axis=1))
+
         else:
             prefix=''
-            irr_sum = irr.sum(axis=1)*binsize
+            irr_sum *= binsize
             hdr=f'sum(wav=[{wmin:g},{wmax:g}])*binsize'
             units = r'$\text{W}\;\text{m}^{-2}$'
-            if False:
-                err_sum = np.sqrt((err*err).sum(axis=1))*binsize
+            if args.errs:
+                err_sum *= binsize
 
         try:
-            np.savetxt(sys.stdout, irr_sum, fmt='%5g', header=hdr)
+            toprint = irr_sum
+            if args.errs:
+                toprint = np.column_stack((irr_sum, err_sum))
+                hdr += '\terr'
+            np.savetxt(sys.stdout, toprint, fmt='%5g', header=hdr)
         except BrokenPipeError:
             pass
 
@@ -110,6 +115,7 @@ def main():
     parser.add_argument('--infile', default=infile_default, help=f'Input HDF5 file containing irradiance data. Default is "{infile_default}"' )
     datesfile_default = './dates.txt'
     parser.add_argument('--datesfile', default=datesfile_default, help=f'Output dates filename. Default is "{datesfile_default}"')
+    parser.add_argument('-e', '--errs', action='store_true', help='Also print uncertainties.')
     parser.add_argument('-w', '--wavs', action='store_true', help='Print wavelength bin centers to stderr.')
     parser.add_argument('-m', '--mean', action='store_true', help='Calculate mean irradiance.')
     parser.add_argument('-s', '--sum', action='store_true', help='Calculate irradiance sums.')
