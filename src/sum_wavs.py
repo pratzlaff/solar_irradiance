@@ -42,18 +42,38 @@ def sum_wavs(args):
             raise BinUniformityError()
 
         i, = np.where((wav>=args.wmin) & (wav<args.wmax))
-
-        irr = f['irradiance'][:,i]
-        irr_sum = irr.sum(axis=1)*binsize
-
-        if False:
-            err = f['uncertainty'][:,i] * irr
-            err_sum = np.sqrt((err*err).sum(axis=1))*binsize
+        if args.wavs:
+            wavstr = 'Wavelengths = [' + ', '.join([f'{w:.2f}' for w in wav[i].tolist()]) + ']\n'
+            sys.stderr.write(wavstr)
 
         # outer limits of the wavelength bins, rather than centers
         wmin = wav[i[0]] - binsize/2
         wmax = wav[i[-1]] + binsize/2
-        hdr=f'sum(wav=[{wmin:g},{wmax:g}])'
+
+        irr = f['irradiance'][:,i]
+        if False:
+            err = f['uncertainty'][:,i] * irr
+
+        units = r'$\text{W}\;\text{m}^{-2}\;\text{nm}^{-1}$'
+        if args.mean:
+            prefix = 'Mean '
+            irr_sum = irr.mean(axis=1)
+            hdr=f'mean(wav=[{wmin:g},{wmax:g}])'
+            if False:
+                err_sum = np.sqrt((err*err).sum(axis=1))/i.shape[0]
+        elif args.sum:
+            prefix = 'Sum '
+            irr_sum = irr.sum(axis=1)
+            hdr=f'sum(wav=[{wmin:g},{wmax:g}])'
+            if False:
+                err_sum = np.sqrt((err*err).sum(axis=1))
+        else:
+            prefix=''
+            irr_sum = irr.sum(axis=1)*binsize
+            hdr=f'sum(wav=[{wmin:g},{wmax:g}])*binsize'
+            units = r'$\text{W}\;\text{m}^{-2}$'
+            if False:
+                err_sum = np.sqrt((err*err).sum(axis=1))*binsize
 
         try:
             np.savetxt(sys.stdout, irr_sum, fmt='%5g', header=hdr)
@@ -61,11 +81,21 @@ def sum_wavs(args):
             pass
 
         if args.plot:
+            plt.rcParams.update({ 'font.size':16  })
+            fig = plt.figure(figsize=(11, 8.5))
             years = dates2years(f['date'])
-            print(years)
-            plt.scatter(years, irr_sum, s=0.1, linewidths=0)
+            if args.xmin is not None:
+                i = years > args.xmin
+                years = years[i]
+                irr_sum = irr_sum[i]
+            if args.xmax is not None:
+                i = years < args.xmax
+                years = years[i]
+                irr_sum = irr_sum[i]
+            plt.scatter(years, irr_sum, s=1, linewidths=1)
             plt.xlabel('Year')
-            plt.ylabel(f'Irradiance: λ(nm)=[{wmin:g}, {wmax:g}]')
+            ylabel = f'{prefix}Irradiance ({units}): λ(nm)=[{wmin:.1f}, {wmax:g}]'
+            plt.ylabel(ylabel)
             plt.tight_layout()
             if args.plot_file is not None:
                 plt.savefig(args.plot_file)
@@ -74,14 +104,19 @@ def sum_wavs(args):
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Read solar irradiance data, sum those in a wavelength range.'
+        description='Read solar irradiance data, sum those in a wavelength range, multiply by bin width.'
     )
     infile_default = srcdir+'/../data/daily_data.nc'
     parser.add_argument('--infile', default=infile_default, help=f'Input HDF5 file containing irradiance data. Default is "{infile_default}"' )
     datesfile_default = './dates.txt'
     parser.add_argument('--datesfile', default=datesfile_default, help=f'Output dates filename. Default is "{datesfile_default}"')
+    parser.add_argument('-w', '--wavs', action='store_true', help='Print wavelength bin centers to stderr.')
+    parser.add_argument('-m', '--mean', action='store_true', help='Calculate mean irradiance.')
+    parser.add_argument('-s', '--sum', action='store_true', help='Calculate irradiance sums.')
     parser.add_argument('-p', '--plot', action='store_true', help='Display plot of data.')
     parser.add_argument('--plot_file', help='Write plot to the given filename. Automatically enables --plot.')
+    parser.add_argument('--xmin', type=float, help='Earliest plotted year')
+    parser.add_argument('--xmax', type=float, help='Latest plotted year')
     parser.add_argument('wmin', type=float, help='Minimum wavelength (nm, bin center)')
     parser.add_argument('wmax', type=float, help='Maximum wavelength (nm, bin center)')
     args = parser.parse_args()
