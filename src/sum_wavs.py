@@ -28,84 +28,87 @@ def write_dates(dates, dates_file):
         np.savetxt(dates_file, dates, fmt='%s', header='Date')
 
 def sum_wavs(args):
-    with h5py.File(args.infile, 'r') as f:
 
+    with h5py.File(args.infile, 'r') as f:
         if False:
             for k in f.keys():
                 sys.stderr.write(f'{k}:\t{f[k].shape}\n')
-
-        write_dates(f['date'], args.datesfile)
-
         wav = f['wavelength'][:]
-        binsize = wav[1]-wav[0]
-        if np.sum(np.abs((wav[1:]-wav[:-1])-binsize)>1e-5):
-            raise BinUniformityError()
-
+        date = f['date'][:]
         i, = np.where((wav>=args.wmin) & (wav<args.wmax))
-        if args.wavs:
-            wavstr = 'Wavelengths = [' + ', '.join([f'{w:.2f}' for w in wav[i].tolist()]) + ']\n'
-            sys.stderr.write(wavstr)
-
-        # outer limits of the wavelength bins, rather than centers
-        wmin = wav[i[0]] - binsize/2
-        wmax = wav[i[-1]] + binsize/2
-
         irr = f['irradiance'][:,i]
-        irr_sum = irr.sum(axis=1)
         if args.errs:
             err = f['uncertainty'][:,i] * irr
-            err_sum = np.sqrt((err*err).sum(axis=1))
 
-        units = r'$\text{W}\;\text{m}^{-2}\;\text{nm}^{-1}$'
-        if args.mean:
-            prefix = 'Mean '
-            irr_sum /= i.shape[0]
-            hdr=f'mean(wav=[{wmin:g},{wmax:g}])'
-            if args.errs:
-                err_sum /= i.shape[0]
+    write_dates(date, args.datesfile)
 
-        elif args.sum:
-            prefix = 'Sum '
-            hdr=f'sum(wav=[{wmin:g},{wmax:g}])'
+    irr_sum = irr.sum(axis=1)
+    if args.errs:
+        err_sum = np.sqrt((err*err).sum(axis=1))
 
+    binsize = wav[1]-wav[0]
+    if np.sum(np.abs((wav[1:]-wav[:-1])-binsize)>1e-5):
+        raise BinUniformityError()
+
+    if args.wavs:
+        wavstr = 'Wavelengths = [' + ', '.join([f'{w:.2f}' for w in wav[i].tolist()]) + ']\n'
+        sys.stderr.write(wavstr)
+
+    # outer limits of the wavelength bins, rather than centers
+    wmin = wav[i[0]] - binsize/2
+    wmax = wav[i[-1]] + binsize/2
+
+    units = r'$\text{W}\;\text{m}^{-2}\;\text{nm}^{-1}$'
+
+    if args.mean:
+        prefix = 'Mean '
+        irr_sum /= i.shape[0]
+        hdr=f'mean(wav=[{wmin:g},{wmax:g}])'
+        if args.errs:
+            err_sum /= i.shape[0]
+
+    elif args.sum:
+        prefix = 'Sum '
+        hdr=f'sum(wav=[{wmin:g},{wmax:g}])'
+
+    else:
+        prefix=''
+        irr_sum *= binsize
+        hdr=f'sum(wav=[{wmin:g},{wmax:g}])*binsize'
+        units = r'$\text{W}\;\text{m}^{-2}$'
+        if args.errs:
+            err_sum *= binsize
+
+    try:
+        toprint = irr_sum
+        if args.errs:
+            toprint = np.column_stack((irr_sum, err_sum))
+            hdr += '\terr'
+        np.savetxt(sys.stdout, toprint, fmt='%5g', header=hdr)
+    except BrokenPipeError:
+        pass
+
+    if args.plot:
+        plt.rcParams.update({ 'font.size':16  })
+        fig = plt.figure(figsize=(11, 8.5))
+        years = dates2years(date)
+        if args.xmin is not None:
+            i = years > args.xmin
+            years = years[i]
+            irr_sum = irr_sum[i]
+        if args.xmax is not None:
+            i = years < args.xmax
+            years = years[i]
+            irr_sum = irr_sum[i]
+        plt.scatter(years, irr_sum, s=1, linewidths=1)
+        plt.xlabel('Year')
+        ylabel = f'{prefix}Irradiance ({units}): λ(nm)=[{wmin:.1f}, {wmax:g}]'
+        plt.ylabel(ylabel)
+        plt.tight_layout()
+        if args.plot_file is not None:
+            plt.savefig(args.plot_file)
         else:
-            prefix=''
-            irr_sum *= binsize
-            hdr=f'sum(wav=[{wmin:g},{wmax:g}])*binsize'
-            units = r'$\text{W}\;\text{m}^{-2}$'
-            if args.errs:
-                err_sum *= binsize
-
-        try:
-            toprint = irr_sum
-            if args.errs:
-                toprint = np.column_stack((irr_sum, err_sum))
-                hdr += '\terr'
-            np.savetxt(sys.stdout, toprint, fmt='%5g', header=hdr)
-        except BrokenPipeError:
-            pass
-
-        if args.plot:
-            plt.rcParams.update({ 'font.size':16  })
-            fig = plt.figure(figsize=(11, 8.5))
-            years = dates2years(f['date'])
-            if args.xmin is not None:
-                i = years > args.xmin
-                years = years[i]
-                irr_sum = irr_sum[i]
-            if args.xmax is not None:
-                i = years < args.xmax
-                years = years[i]
-                irr_sum = irr_sum[i]
-            plt.scatter(years, irr_sum, s=1, linewidths=1)
-            plt.xlabel('Year')
-            ylabel = f'{prefix}Irradiance ({units}): λ(nm)=[{wmin:.1f}, {wmax:g}]'
-            plt.ylabel(ylabel)
-            plt.tight_layout()
-            if args.plot_file is not None:
-                plt.savefig(args.plot_file)
-            else:
-                plt.show()
+            plt.show()
 
 def main():
     parser = argparse.ArgumentParser(
